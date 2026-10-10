@@ -88,7 +88,7 @@ The guiding principle: **as simple and short as possible, yet well organized.**
 
 ## Conventions
 
-- **Ports:** defender `3001`, midfielder `3002`, attacker `3003`, Tempo OTLP HTTP `4318`, Tempo query `3200`, Grafana `3000`, Prometheus `9090`.
+- **Ports:** defender `3001`, midfielder `3002`, attacker `3003`, Tempo OTLP HTTP `4318`, Tempo query `3200`, Grafana `3000`, Prometheus `9090` (published on host port `9091` in Docker Compose).
 - **Endpoints:** each service exposes `GET /health` (used for Kubernetes probes) and `GET /metrics` (Prometheus scrape target). Midfielder and attacker expose `POST /process`. Defender has no trigger endpoint: it starts sending data in a loop as soon as it boots.
 - **Env vars (per service):**
   - `PORT`
@@ -110,7 +110,7 @@ Run from the repository root unless noted.
 docker compose up --build
 
 # The defender starts the pipeline on boot; open Grafana at http://localhost:3000 > Explore > Tempo (traces) or Prometheus (metrics)
-# Prometheus UI: http://localhost:9090
+# Prometheus UI: http://localhost:9091
 
 # Single service (from apps/app-<name>/)
 npm install
