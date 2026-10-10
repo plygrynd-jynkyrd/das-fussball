@@ -28,7 +28,7 @@ app-defender --HTTP--> app-midfielder --HTTP--> app-attacker
 - **HTTP:** Express. Service-to-service calls use plain HTTP/REST (built-in `fetch`).
 - **Packages:** npm. Each service is an independent npm package (no workspaces, no shared package; small duplication is acceptable).
 - **Tracing:** OpenTelemetry Node SDK with auto-instrumentation, exporting OTLP to Tempo. Trace context propagates automatically through HTTP headers. Do not add manual spans unless asked.
-- **Local run:** Docker Compose (services + Tempo + Grafana)
+- **Local run:** Docker Compose (apps + Tempo + Grafana)
 - **Cloud:** Terraform provisions GCP infra (GKE cluster, Artifact Registry, etc.). Kubernetes resources are plain YAML applied with `kubectl`. Tempo and Grafana are installed on the cluster with Helm.
 
 ## Repository layout
@@ -37,7 +37,7 @@ app-defender --HTTP--> app-midfielder --HTTP--> app-attacker
 .
 ├── AGENTS.md
 ├── docker-compose.yml
-├── services/
+├── apps/
 │   ├── app-defender/
 │   ├── app-midfielder/
 │   └── app-attacker/
@@ -51,7 +51,7 @@ app-defender --HTTP--> app-midfielder --HTTP--> app-attacker
 Folders represent layers. Each file has **one responsibility**.
 
 ```
-services/app-<name>/
+apps/app-<name>/
 ├── Dockerfile
 ├── package.json
 ├── tsconfig.json
@@ -102,13 +102,13 @@ The guiding principle: **as simple and short as possible, yet well organized.**
 Run from the repository root unless noted.
 
 ```bash
-# Local: build and start everything (services, Tempo, Grafana)
+# Local: build and start everything (apps, Tempo, Grafana)
 docker compose up --build
 
 # Trigger the pipeline, then open Grafana at http://localhost:3000 > Explore > Tempo
 curl -X POST http://localhost:3001/start
 
-# Single service (from services/app-<name>/)
+# Single service (from apps/app-<name>/)
 npm install
 npm run dev      # run with tsx / ts-node watch
 npm run build    # compile TypeScript to dist/
@@ -124,9 +124,9 @@ Every service's `package.json` must provide the `dev`, `build`, and `start` scri
 ## Boundaries for agents
 
 **Always**
-- Keep the three services structurally identical so learners can compare them.
+- Keep the three apps structurally identical so learners can compare them.
 - Update `docker-compose.yml`, `k8s/`, and this file when ports, env vars, or endpoints change.
-- Verify the stack still starts with `docker compose up --build` after changes to services or compose files.
+- Verify the stack still starts with `docker compose up --build` after changes to apps or compose files.
 
 **Ask first**
 - Adding a dependency, framework, or new top-level folder.
