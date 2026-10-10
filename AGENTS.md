@@ -18,7 +18,7 @@ app-defender --HTTP--> app-midfielder --HTTP--> app-attacker
 
 | Service | Role |
 |---|---|
-| `app-defender` | Generates dummy data and POSTs it to `app-midfielder`. Starts each trace. |
+| `app-defender` | Generates dummy data and POSTs it to `app-midfielder` in a continuous loop, starting at boot. Starts each trace. |
 | `app-midfielder` | Receives data, simulates slow processing (random delay), POSTs to `app-attacker`. |
 | `app-attacker` | Receives data, simulates processing, finishes the pipeline. |
 
@@ -85,7 +85,7 @@ The guiding principle: **as simple and short as possible, yet well organized.**
 ## Conventions
 
 - **Ports:** defender `3001`, midfielder `3002`, attacker `3003`, Tempo OTLP HTTP `4318`, Tempo query `3200`, Grafana `3000`.
-- **Endpoints:** each service exposes `GET /health` (used for Kubernetes probes). Midfielder and attacker expose `POST /process`. Defender exposes `POST /start` to trigger a run.
+- **Endpoints:** each service exposes `GET /health` (used for Kubernetes probes). Midfielder and attacker expose `POST /process`. Defender has no trigger endpoint: it starts sending data in a loop as soon as it boots.
 - **Env vars (per service):**
   - `PORT`
   - `NEXT_SERVICE_URL` (midfielder and defender: the downstream service)
@@ -105,8 +105,7 @@ Run from the repository root unless noted.
 # Local: build and start everything (apps, Tempo, Grafana)
 docker compose up --build
 
-# Trigger the pipeline, then open Grafana at http://localhost:3000 > Explore > Tempo
-curl -X POST http://localhost:3001/start
+# The defender starts the pipeline on boot; open Grafana at http://localhost:3000 > Explore > Tempo
 
 # Single service (from apps/app-<name>/)
 npm install

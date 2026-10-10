@@ -1,0 +1,63 @@
+services:
+  app-defender:
+    build: ./apps/app-defender
+    environment:
+      PORT: 3001
+      NEXT_SERVICE_URL: http://app-midfielder:3002
+      OTEL_SERVICE_NAME: app-defender
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
+    ports:
+      - "3001:3001"
+    # Defender sends its request on startup, so wait until the rest of the pipeline is healthy.
+    depends_on:
+      app-midfielder:
+        condition: service_healthy
+
+  app-midfielder:
+    build: ./apps/app-midfielder
+    environment:
+      PORT: 3002
+      NEXT_SERVICE_URL: http://app-attacker:3003
+      OTEL_SERVICE_NAME: app-midfielder
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3002/health"]
+      interval: 2s
+      retries: 15
+    depends_on:
+      app-attacker:
+        condition: service_healthy
+
+  app-attacker:
+    build: ./apps/app-attacker
+    environment:
+      PORT: 3003
+      OTEL_SERVICE_NAME: app-attacker
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3003/health"]
+      interval: 2s
+      retries: 15
+
+  tempo:
+    image: grafana/tempo:2.8.2
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./observability/tempo.yaml:/etc/tempo.yaml:ro
+    ports:
+      - "3200:3200"
+      - "4318:4318"
+
+  grafana:
+    image: grafana/grafana:12.2.0
+    environment:
+      # Local only: skip the login screen.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - tempo

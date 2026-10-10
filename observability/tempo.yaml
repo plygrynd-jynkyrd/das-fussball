@@ -1,0 +1,18 @@
+# Minimal single-binary Tempo for local use: receives OTLP over HTTP, stores traces on local disk.
+server:
+  http_listen_port: 3200   # query API (Grafana connects here)
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        http:
+          endpoint: 0.0.0.0:4318   # apps export traces here
+
+storage:
+  trace:
+    backend: local
+    wal:
+      path: /var/tempo/wal
+    local:
+      path: /var/tempo/blocks
