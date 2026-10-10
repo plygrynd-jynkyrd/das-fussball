@@ -6,7 +6,7 @@ Instructions for AI agents working in this repository.
 
 **das-fussball** is a fantasy-football-themed system for **practicing and teaching Kubernetes on Google Cloud (GKE)**. It is a learning project, not a production system. Favor clarity and simplicity over completeness.
 
-Three Node.js/TypeScript services form a pipeline. Distributed tracing (OpenTelemetry -> Tempo) shows how long a request takes from defender to attacker.
+Three Node.js/TypeScript services form a pipeline. Distributed tracing (OpenTelemetry -> Tempo) shows how long a request takes from defender to attacker. Prometheus scrapes request metrics from every service.
 
 ```
 app-defender --HTTP--> app-midfielder --HTTP--> app-attacker
@@ -14,6 +14,8 @@ app-defender --HTTP--> app-midfielder --HTTP--> app-attacker
         \_____________________ traces (OTLP) ______________________/
                                    v
                                  Tempo --> Grafana (view traces)
+
+each service --GET /metrics--> Prometheus --> Grafana (view metrics)
 ```
 
 | Service | Role |
@@ -28,7 +30,8 @@ app-defender --HTTP--> app-midfielder --HTTP--> app-attacker
 - **HTTP:** Express. Service-to-service calls use plain HTTP/REST (built-in `fetch`).
 - **Packages:** npm. Each service is an independent npm package (no workspaces, no shared package; small duplication is acceptable).
 - **Tracing:** OpenTelemetry Node SDK with auto-instrumentation, exporting OTLP to Tempo. Trace context propagates automatically through HTTP headers. Do not add manual spans unless asked.
-- **Local run:** Docker Compose (apps + Tempo + Grafana)
+- **Metrics:** `prom-client` in each service exposes `GET /metrics`; Prometheus scrapes it (pull model). Metrics: `requests_completed_total` (counter) and `request_duration_seconds` (histogram), labelled `method`, `route`, `status`. Midfielder/attacker record them in the `recordRequestMetrics` middleware; the defender has no inbound traffic, so it records its outgoing sends in `runPipeline`.
+- **Local run:** Docker Compose (apps + Tempo + Prometheus + Grafana)
 - **Cloud:** Terraform provisions GCP infra (GKE cluster, Artifact Registry, etc.). Kubernetes resources are plain YAML applied with `kubectl`. Tempo and Grafana are installed on the cluster with Helm.
 
 ## Repository layout
@@ -41,7 +44,7 @@ app-defender --HTTP--> app-midfielder --HTTP--> app-attacker
 │   ├── app-defender/
 │   ├── app-midfielder/
 │   └── app-attacker/
-├── observability/        # Tempo config, Grafana datasource provisioning
+├── observability/        # Tempo + Prometheus config, Grafana datasource provisioning
 ├── k8s/                  # Plain Kubernetes manifests (Deployment, Service, ...)
 └── terraform/            # GCP / GKE infrastructure
 ```
@@ -58,6 +61,7 @@ apps/app-<name>/
 └── src/
     ├── index.ts          # Entry point: load tracing, start server. Nothing else.
     ├── tracing.ts        # OpenTelemetry setup (must be imported first)
+    ├── metrics.ts        # Prometheus metric definitions (counter, histogram)
     ├── config/           # Env var reading (ports, downstream URLs, delays)
     ├── routes/           # Express routers: HTTP in/out only, no business logic
     ├── services/         # Business logic (generate data, simulate processing)
@@ -84,8 +88,8 @@ The guiding principle: **as simple and short as possible, yet well organized.**
 
 ## Conventions
 
-- **Ports:** defender `3001`, midfielder `3002`, attacker `3003`, Tempo OTLP HTTP `4318`, Tempo query `3200`, Grafana `3000`.
-- **Endpoints:** each service exposes `GET /health` (used for Kubernetes probes). Midfielder and attacker expose `POST /process`. Defender has no trigger endpoint: it starts sending data in a loop as soon as it boots.
+- **Ports:** defender `3001`, midfielder `3002`, attacker `3003`, Tempo OTLP HTTP `4318`, Tempo query `3200`, Grafana `3000`, Prometheus `9090`.
+- **Endpoints:** each service exposes `GET /health` (used for Kubernetes probes) and `GET /metrics` (Prometheus scrape target). Midfielder and attacker expose `POST /process`. Defender has no trigger endpoint: it starts sending data in a loop as soon as it boots.
 - **Env vars (per service):**
   - `PORT`
   - `NEXT_SERVICE_URL` (midfielder and defender: the downstream service)
@@ -105,7 +109,8 @@ Run from the repository root unless noted.
 # Local: build and start everything (apps, Tempo, Grafana)
 docker compose up --build
 
-# The defender starts the pipeline on boot; open Grafana at http://localhost:3000 > Explore > Tempo
+# The defender starts the pipeline on boot; open Grafana at http://localhost:3000 > Explore > Tempo (traces) or Prometheus (metrics)
+# Prometheus UI: http://localhost:9090
 
 # Single service (from apps/app-<name>/)
 npm install

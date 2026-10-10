@@ -1,0 +1,7 @@
+# Prometheus pulls (scrapes) GET /metrics from each app every 5s.
+global:
+  scrape_interval: 5s
+scrape_configs:
+  - job_name: apps
+    static_configs:
+      - targets: ["app-defender:3001", "app-midfielder:3002", "app-attacker:3003"]
