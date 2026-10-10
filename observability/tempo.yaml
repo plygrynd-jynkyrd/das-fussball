@@ -16,3 +16,18 @@ storage:
       path: /var/tempo/wal
     local:
       path: /var/tempo/blocks
+
+# Enables TraceQL metrics queries (e.g. `{ } | rate()`) used by the Traces dashboard.
+metrics_generator:
+  processor:
+    local_blocks:
+      flush_to_storage: true
+  storage:
+    path: /var/tempo/generator/wal
+  traces_storage:
+    path: /var/tempo/generator/traces
+
+overrides:
+  defaults:
+    metrics_generator:
+      processors: [local-blocks]

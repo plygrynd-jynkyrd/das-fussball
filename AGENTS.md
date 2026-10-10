@@ -44,7 +44,7 @@ each service --GET /metrics--> Prometheus --> Grafana (view metrics)
 │   ├── app-defender/
 │   ├── app-midfielder/
 │   └── app-attacker/
-├── observability/        # Tempo + Prometheus config, Grafana datasource provisioning
+├── observability/        # Tempo + Prometheus config, Grafana datasource + dashboard provisioning
 ├── k8s/                  # Plain Kubernetes manifests (Deployment, Service, ...)
 └── terraform/            # GCP / GKE infrastructure
 ```
@@ -111,6 +111,7 @@ docker compose up --build
 
 # The defender starts the pipeline on boot; open Grafana at http://localhost:3000 > Explore > Tempo (traces) or Prometheus (metrics)
 # Prometheus UI: http://localhost:9091
+# Dashboards (provisioned from observability/grafana/dashboards/): Service Overview (RED), Pipeline Comparison, Traces, Metrics to Traces
 
 # Single service (from apps/app-<name>/)
 npm install
