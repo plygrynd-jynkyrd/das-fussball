@@ -4,7 +4,7 @@ Instructions for AI agents working in this repository.
 
 ## Project
 
-**das-fussball** is a fantasy-football-themed system for **practicing and teaching Kubernetes on Google Cloud (GKE)**. It is a learning project, not a production system. Favor clarity and simplicity over completeness.
+**das-fussball** is a fantasy-football-themed system for **practicing and teaching Kubernetes on AWS (EKS)**. It is a learning project, not a production system. Favor clarity and simplicity over completeness.
 
 Three Node.js/TypeScript services form a pipeline. Distributed tracing (OpenTelemetry -> Tempo) shows how long a request takes from defender to attacker. Prometheus scrapes request metrics from every service.
 
@@ -32,7 +32,7 @@ each service --GET /metrics--> Prometheus --> Grafana (view metrics)
 - **Tracing:** OpenTelemetry Node SDK with auto-instrumentation, exporting OTLP to Tempo. Trace context propagates automatically through HTTP headers. Do not add manual spans unless asked.
 - **Metrics:** `prom-client` in each service exposes `GET /metrics`; Prometheus scrapes it (pull model). Metrics: `requests_completed_total` (counter) and `request_duration_seconds` (histogram), labelled `method`, `route`, `status`. Midfielder/attacker record them in the `recordRequestMetrics` middleware; the defender has no inbound traffic, so it records its outgoing sends in `runPipeline`.
 - **Local run:** Docker Compose (apps + Tempo + Prometheus + Grafana)
-- **Cloud:** Terraform provisions GCP infra (GKE cluster, Artifact Registry, etc.). Kubernetes resources are plain YAML applied with `kubectl`. Tempo and Grafana are installed on the cluster with Helm.
+- **Cloud:** Terraform provisions AWS infra (VPC, EKS cluster, node group, etc.). Images are published to Docker Hub (`leonardiwagner/das-fussball-<app>`). Kubernetes resources are plain YAML applied with `kubectl`. Tempo and Grafana are installed on the cluster with Helm.
 
 ## Repository layout
 
@@ -40,13 +40,14 @@ each service --GET /metrics--> Prometheus --> Grafana (view metrics)
 .
 ├── AGENTS.md
 ├── docker-compose.yml
+├── release.sh            # bump version, build + push images to Docker Hub
 ├── apps/
 │   ├── app-defender/
 │   ├── app-midfielder/
 │   └── app-attacker/
 ├── observability/        # Tempo + Prometheus config, Grafana datasource + dashboard provisioning
 ├── k8s/                  # Plain Kubernetes manifests (Deployment, Service, ...)
-└── terraform/            # GCP / GKE infrastructure
+└── terraform/            # AWS / EKS infrastructure
 ```
 
 ### Service internal layout (same in every service)
@@ -97,7 +98,7 @@ The guiding principle: **as simple and short as possible, yet well organized.**
   - `OTEL_EXPORTER_OTLP_ENDPOINT` (e.g. `http://tempo:4318`)
   - `PROCESSING_DELAY_MS` (simulated work time)
 - **Service discovery:** use service names as hostnames (`http://app-midfielder:3002`). This works the same in Docker Compose and in Kubernetes Services.
-- **Docker images:** small multi-stage builds on a Node LTS alpine image, running compiled JS from `dist/`.
+- **Docker images:** small multi-stage builds on a Node LTS alpine image, running compiled JS from `dist/`. Published as `leonardiwagner/das-fussball-<app>:<version>` (+ `latest`), all apps sharing one version, built for `linux/amd64` (standard EKS nodes).
 - **Kubernetes:** one Deployment and one ClusterIP Service per app, with resource requests/limits and `/health` probes. Only `app-defender` needs external access.
 - **Terraform:** keep it flat and readable: few files (`main.tf`, `variables.tf`, `outputs.tf`), no modules unless needed. Never commit state files or `*.tfvars` with secrets.
 
@@ -119,7 +120,11 @@ npm run dev      # run with tsx / ts-node watch
 npm run build    # compile TypeScript to dist/
 npm start        # run compiled output
 
-# GCP
+# Release: bump all apps' version, build linux/amd64 images, push to Docker Hub, commit + tag
+# (needs `docker login -u leonardiwagner` first; use an access token)
+./release.sh patch   # or minor | major
+
+# AWS
 cd terraform && terraform init && terraform plan && terraform apply
 kubectl apply -f k8s/
 ```
@@ -136,7 +141,7 @@ Every service's `package.json` must provide the `dev`, `build`, and `start` scri
 **Ask first**
 - Adding a dependency, framework, or new top-level folder.
 - Changing the transport (e.g. to gRPC or Pub/Sub) or the observability stack.
-- Anything that creates billable GCP resources or runs `terraform apply` / `terraform destroy`.
+- Anything that creates billable AWS resources or runs `terraform apply` / `terraform destroy`.
 
 **Never**
 - Commit secrets, service account keys, `.env` files, or Terraform state.
